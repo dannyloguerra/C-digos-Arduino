@@ -1,0 +1,516 @@
+#include <Fuzzy.h>
+#include <FuzzyComposition.h>
+#include <FuzzyInput.h>
+#include <FuzzyIO.h>
+#include <FuzzyOutput.h>
+#include <FuzzyRule.h>
+#include <FuzzyRuleAntecedent.h>
+#include <FuzzyRuleConsequent.h>
+#include <FuzzySet.h>
+
+// Definição dos pinos 
+
+  int pinUS = 3;
+  int pinEB = 8;
+  int pinI4 = 9;
+  int pinI3 = 10;
+  int pinEA = 13;
+  int pinI2 = 11;
+  int pinI1 = 12;
+  int pinTDIR = 2;
+  int pinTESQ = 6;
+  int pinAPITO = 17;
+
+// Constante de velocidade divisor (1 - 10)
+  int constVel = 1;
+  
+// Definicao de variaveis
+  int distancia =0;
+  int velocidade =0;
+  
+  
+// Step 1 -  Instanciando os objetos da biblioteca
+  Fuzzy* fuzzy = new Fuzzy();
+  
+void setup()
+{
+  pinMode(pinEA , OUTPUT);
+  pinMode(pinEB , OUTPUT);
+  pinMode(pinI1 , OUTPUT);
+  pinMode(pinI2 , OUTPUT);
+  pinMode(pinI3 , OUTPUT);
+  pinMode(pinI4 , OUTPUT);
+  pinMode(pinTDIR,  OUTPUT);
+  pinMode(pinTESQ,  OUTPUT);
+  pinMode(pinAPITO, OUTPUT);
+  
+  while(!digitalRead(pinTDIR));
+  ligaApito();
+  delay(1000);
+  desligaApito();
+  delay(1000);
+  Serial.begin(9600);
+  Serial.println('Iniciando processo');
+
+//Step 2 - Criando entrada Fuzzy para distancia
+  
+FuzzyInput* distancedir = new FuzzyInput(1);// With its ID in param
+  // Creating the FuzzySet to compond FuzzyInput distance dir
+  FuzzySet* smalldir = new FuzzySet(0, 10, 10, 40); // Small distance
+  distancedir->addFuzzySet(smalldir); // Add FuzzySet small to distance
+  FuzzySet* safedir = new FuzzySet(20, 60, 60, 80); // Safe distance
+  distancedir->addFuzzySet(safedir); // Add FuzzySet safe to distance
+  FuzzySet* bigdir = new FuzzySet(60, 80, 80, 80); // Big distance
+  distancedir->addFuzzySet(bigdir); // Add FuzzySet big to distance
+  fuzzy->addFuzzyInput(distancedir); // Add FuzzyInput to Fuzzy object
+
+FuzzyInput* distancecentro = new FuzzyInput(2);// With its ID in param
+  // Creating the FuzzySet to compond FuzzyInput distance centro
+  FuzzySet* smallcentro = new FuzzySet(0, 10, 10, 40); // Small distance
+  distancecentro->addFuzzySet(smallcentro); // Add FuzzySet small to distance
+  FuzzySet* safecentro = new FuzzySet(20, 60, 60, 80); // Safe distance
+  distancecentro->addFuzzySet(safecentro); // Add FuzzySet safe to distance
+  FuzzySet* bigcentro = new FuzzySet(60, 80, 80, 80); // Big distance
+  distancecentro->addFuzzySet(bigcentro); // Add FuzzySet big to distance
+  fuzzy->addFuzzyInput(distancecentro); // Add FuzzyInput to Fuzzy object
+
+FuzzyInput* distanceesq = new FuzzyInput(3);// With its ID in param
+  // Creating the FuzzySet to compond FuzzyInput distance esquerda
+  FuzzySet* smallesq = new FuzzySet(0, 10, 10, 40); // Small distance
+  distanceesq->addFuzzySet(smallesq); // Add FuzzySet small to distance
+  FuzzySet* safeesq = new FuzzySet(20, 60, 60, 80); // Safe distance
+  distanceesq->addFuzzySet(safeesq); // Add FuzzySet safe to distance
+  FuzzySet* bigesq = new FuzzySet(60, 80, 80, 80); // Big distance
+  distanceesq->addFuzzySet(bigesq); // Add FuzzySet big to distance
+  fuzzy->addFuzzyInput(distanceesq); // Add FuzzyInput to Fuzzy object
+  
+//Passo 3 - Criando saída Fuzzy de velocidade
+  
+FuzzyOutput* velocityesq = new FuzzyOutput(1);// With its ID in param
+  // Creating FuzzySet to compond FuzzyOutput velocity
+  FuzzySet* slowesq = new FuzzySet(0, 40, 40, 60); // Slow velocity
+  velocityesq->addFuzzySet(slowesq); // Add FuzzySet slow to velocity
+  FuzzySet* stopesq = new FuzzySet(40, 90, 90, 120); // Average velocity
+  velocityesq->addFuzzySet(stopesq); // Add FuzzySet average to velocity
+  FuzzySet* fastesq = new FuzzySet(90, 120, 120, 120); // Fast velocity
+  velocityesq->addFuzzySet(fastesq); // Add FuzzySet fast to velocity
+  fuzzy->addFuzzyOutput(velocityesq); // Add FuzzyOutput to Fuzzy object
+
+FuzzyOutput* velocitydir = new FuzzyOutput(2);// With its ID in param
+  // Creating FuzzySet to compond FuzzyOutput velocity
+  FuzzySet* slowdir = new FuzzySet(0, 40, 40, 60); // Slow velocity
+  velocitydir->addFuzzySet(slowdir); // Add FuzzySet slow to velocity
+  FuzzySet* stopdir = new FuzzySet(40, 90, 90, 120); // Average velocity
+  velocitydir->addFuzzySet(stopdir); // Add FuzzySet average to velocity
+  FuzzySet* fastdir = new FuzzySet(90, 120, 120, 120); // Fast velocity
+  velocitydir->addFuzzySet(fastdir); // Add FuzzySet fast to velocity
+  fuzzy->addFuzzyOutput(velocitydir); // Add FuzzyOutput to Fuzzy object
+  
+//Passo 4 - Criando Regras Fuzzy
+
+//FuzzyRule "IF DE = big and DC = big and DD = big THEN velocityesq = fast and velocitydir = fast"
+  FuzzyRuleAntecedent* ifDEbigAndDCbigAndDDbig = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEbigAndDCbigAndDDbig->joinWithAND(bigesq, bigcentro, bigdir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDfast = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDfast->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDfast->addOutput(fastdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule01 = new FuzzyRule(1, ifDEbigAndDCbigAndDDbig, thenVEfastAndVDfast); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule01); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = big and DC = big and DD = safe THEN velocityesq = slow and velocitydir = fast"
+  FuzzyRuleAntecedent* ifDEbigAndDCbigAndDDsafe = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEbigAndDCbigAndDDsafe->joinWithAND(bigesq, bigcentro, safedir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEslowAndVDfast = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEslowAndVDfast->addOutput(slowesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEslowAndVDfast->addOutput(fastdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule02 = new FuzzyRule(2, ifDEbigAndDCbigAndDDsafe, thenVEslowAndVDfast); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule02); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = big and DC = big and DD = small THEN velocityesq = stop and velocitydir = fast"
+  FuzzyRuleAntecedent* ifDEbigAndDCbigAndDDsmall = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEbigAndDCbigAndDDsmall->joinWithAND(bigesq, bigcentro, smalldir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEstopAndVDfast = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDfast->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDfast->addOutput(fastdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule03 = new FuzzyRule(3, ifDEbigAndDCbigAndDDsmall, thenVEstopAndVDfast); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule03); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = big and DC = safe and DD = big THEN velocityesq = slow and velocitydir = slow"
+  FuzzyRuleAntecedent* ifDEbigAndDCsafeAndDDbig = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEbigAndDCsafeAndDDbig->joinWithAND(bigesq, safecentro, bigdir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEslowAndVDslow = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEslowAndVDslow->addOutput(slowesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEslowAndVDslow->addOutput(slowdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule04 = new FuzzyRule(4, ifDEbigAndDCsafeAndDDbig, thenVEslowAndVDslow); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule04); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = big and DC = safe and DD = safe THEN velocityesq = stop and velocitydir = slow"
+  FuzzyRuleAntecedent* ifDEbigAndDCsafeAndDDsafe = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEbigAndDCsafeAndDDsafe->joinWithAND(bigesq, safecentro, safedir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEstopAndVDslow = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDslow->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDslow->addOutput(slowdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule05 = new FuzzyRule(5, ifDEbigAndDCsafeAndDDsafe, thenVEstopAndVDslow); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule05); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = big and DC = safe and DD = small THEN velocityesq = stop and velocitydir = fast"
+  FuzzyRuleAntecedent* ifDEbigAndDCsafeAndDDsmall = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEbigAndDCsafeAndDDsmall->joinWithAND(bigesq, safecentro, smalldir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEstopAndVDfast = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDfast->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDfast->addOutput(fastdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule06 = new FuzzyRule(6, ifDEbigAndDCsafeAndDDsmall, thenVEstopAndVDfast); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule06); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = big and DC = small and DD = big THEN velocityesq = stop and velocitydir = slow"
+  FuzzyRuleAntecedent* ifDEbigAndDCsmallAndDDbig = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEbigAndDCsmallAndDDbig->joinWithAND(bigesq, smallcentro, bigdir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEstopAndVDslow = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDslow->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDslow->addOutput(slowdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule07 = new FuzzyRule(7, ifDEbigAndDCsmallAndDDbig, thenVEstopAndVDslow); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule07); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = big and DC = small and DD = safe THEN velocityesq = stop and velocitydir = slow"
+  FuzzyRuleAntecedent* ifDEbigAndDCsmallAndDDsafe = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEbigAndDCsmallAndDDsafe->joinWithAND(bigesq, smallcentro, safedir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEstopAndVDslow = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDslow->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDslow->addOutput(slowdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule08= new FuzzyRule(8, ifDEbigAndDCsmallAndDDsafe, thenVEstopAndVDslow); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule08); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = big and DC = small and DD = small THEN velocityesq = stop and velocitydir = slow"
+  FuzzyRuleAntecedent* ifDEbigAndDCsmallAndDDsmall = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEbigAndDCsmallAndDDsmall->joinWithAND(bigesq, smallcentro, smalldir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEstopAndVDslow = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDslow->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDslow->addOutput(slowdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule09= new FuzzyRule(9, ifDEbigAndDCsmallAndDDsmall, thenVEstopAndVDslow); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule09); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = safe and DC = big and DD = big THEN velocityesq = fast and velocitydir = slow"
+  FuzzyRuleAntecedent* ifDEsafeAndDCbigAndDDbig = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsafeAndDCbigAndDDbig->joinWithAND(safeesq, bigcentro, bigdir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDslow = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDslow->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDslow->addOutput(slowdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule10 = new FuzzyRule(10, ifDEsafeAndDCbigAndDDbig, thenVEfastAndVDslow); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule10); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = safe and DC = big and DD = safe THEN velocityesq = slow and velocitydir = slow"
+  FuzzyRuleAntecedent* ifDEsafeAndDCbigAndDDsafe = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsafeAndDCbigAndDDsafe->joinWithAND(safeesq, bigcentro, safedir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEslowAndVDslow = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEslowAndVDslow->addOutput(slowesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEslowAndVDslow->addOutput(slowdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule11 = new FuzzyRule(11, ifDEsafeAndDCbigAndDDsafe, thenVEslowAndVDslow); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule11); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = safe and DC = big and DD = small THEN velocityesq = stop and velocitydir = fast"
+  FuzzyRuleAntecedent* ifDEsafeAndDCbigAndDDsmall = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsafeAndDCbigAndDDsmall->joinWithAND(safeesq, bigcentro, smalldir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEstopAndVDfast = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDfast->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDfast->addOutput(fastdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule12 = new FuzzyRule(12, ifDEsafeAndDCbigAndDDsmall, thenVEstopAndVDfast); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule12); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = safe and DC = safe and DD = big THEN velocityesq = fast and velocitydir = slow"
+  FuzzyRuleAntecedent* ifDEsafeAndDCsafeAndDDbig = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsafeAndDCsafeAndDDbig->joinWithAND(safeesq, safecentro, bigdir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDslow = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDslow->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDslow->addOutput(slowdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule13 = new FuzzyRule(13, ifDEsafeAndDCsafeAndDDbig, thenVEfastAndVDslow); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule13); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = safe and DC = safe and DD = safe THEN velocityesq = slow and velocitydir = slow"
+  FuzzyRuleAntecedent* ifDEsafeAndDCsafeAndDDsafe = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsafeAndDCsafeAndDDsafe->joinWithAND(safeesq, safecentro, safedir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEslowAndVDslow = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEslowAndVDslow->addOutput(slowesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEslowAndVDslow->addOutput(slowdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule14 = new FuzzyRule(14, ifDEsafeAndDCsafeAndDDsafe, thenVEslowAndVDslow); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule14); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = safe and DC = safe and DD = small THEN velocityesq = stop and velocitydir = fast"
+  FuzzyRuleAntecedent* ifDEsafeAndDCsafeAndDDsmall = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsafeAndDCsafeAndDDsmall->joinWithAND(safeesq, safecentro, smalldir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEstopAndVDfast = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDfast->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDfast->addOutput(fastdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule15 = new FuzzyRule(15, ifDEsafeAndDCsafeAndDDsmall, thenVEstopAndVDfast); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule15); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = safe and DC = small and DD = big THEN velocityesq = fast and velocitydir = stop"
+  FuzzyRuleAntecedent* ifDEsafeAndDCsmallAndDDbig = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsafeAndDCsmallAndDDbig->joinWithAND(safeesq, smallcentro, bigdir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDstop = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDstop->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDstop->addOutput(stopdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule16 = new FuzzyRule(16, ifDEsafeAndDCsmallAndDDbig, thenVEfastAndVDstop); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule16); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = safe and DC = small and DD = safe THEN velocityesq = stop and velocitydir = fast"
+  FuzzyRuleAntecedent* ifDEsafeAndDCsmallAndDDsafe = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsafeAndDCsmallAndDDsafe->joinWithAND(safeesq, smallcentro, safedir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEstopAndVDfast = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDfast->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDfast->addOutput(fastdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule17= new FuzzyRule(17, ifDEsafeAndDCsmallAndDDsafe, thenVEstopAndVDfast); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule17); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = safe and DC = small and DD = small THEN velocityesq = stop and velocitydir = fast"
+  FuzzyRuleAntecedent* ifDEsafeAndDCsmallAndDDsmall = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsafeAndDCsmallAndDDsmall->joinWithAND(safeesq, smallcentro, smalldir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEstopAndVDfast = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDfast->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDfast->addOutput(fastdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule18= new FuzzyRule(18, ifDEsafeAndDCsmallAndDDsmall, thenVEstopAndVDfast); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule18); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = small and DC = big and DD = big THEN velocityesq = fast and velocitydir = stop"
+  FuzzyRuleAntecedent* ifDEsmallAndDCbigAndDDbig = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsmallAndDCbigAndDDbig->joinWithAND(smallesq, bigcentro, bigdir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDstop = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDstop->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDstop->addOutput(stopdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule19 = new FuzzyRule(19, ifDEsmallAndDCbigAndDDbig, thenVEfastAndVDstop); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule19); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = small and DC = big and DD = safe THEN velocityesq = fast and velocitydir = stop"
+  FuzzyRuleAntecedent* ifDEsmallAndDCbigAndDDsafe = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsmallAndDCbigAndDDsafe->joinWithAND(smallesq, bigcentro, safedir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDstop = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDstop->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDstop->addOutput(stopdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule20 = new FuzzyRule(20, ifDEsmallAndDCbigAndDDsafe, thenVEfastAndVDstop); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule20); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = small and DC = big and DD = small THEN velocityesq = fast and velocitydir = stop"
+  FuzzyRuleAntecedent* ifDEsmallAndDCbigAndDDsmall = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsmallAndDCbigAndDDsmall->joinWithAND(smallesq, bigcentro, smalldir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDstop = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDstop->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDstop->addOutput(stopdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule21 = new FuzzyRule(21, ifDEsmallAndDCbigAndDDsmall, thenVEfastAndVDstop); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule21); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = small and DC = safe and DD = big THEN velocityesq = fast and velocitydir = stop"
+  FuzzyRuleAntecedent* ifDEsmallAndDCsafeAndDDbig = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsmallAndDCsafeAndDDbig->joinWithAND(smallesq, safecentro, bigdir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDstop = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDstop->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDstop->addOutput(stopdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule22 = new FuzzyRule(22, ifDEsmallAndDCsafeAndDDbig, thenVEfastAndVDstop); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule22); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = small and DC = safe and DD = safe THEN velocityesq = fast and velocitydir = stop"
+  FuzzyRuleAntecedent* ifDEsmallAndDCsafeAndDDsafe = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsmallAndDCsafeAndDDsafe->joinWithAND(smallesq, safecentro, safedir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDstop = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDstop->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDstop->addOutput(stopdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule23 = new FuzzyRule(23, ifDEsmallAndDCsafeAndDDsafe, thenVEfastAndVDstop); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule23); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = small and DC = safe and DD = small THEN velocityesq = fast and velocitydir = stop"
+  FuzzyRuleAntecedent* ifDEsmallAndDCsafeAndDDsmall = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsmallAndDCsafeAndDDsmall->joinWithAND(smallesq, safecentro, smalldir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDstop = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDstop->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDstop->addOutput(stopdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule24 = new FuzzyRule(24, ifDEsmallAndDCsafeAndDDsmall, thenVEfastAndVDstop); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule24); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = small and DC = small and DD = big THEN velocityesq = fast and velocitydir = stop"
+  FuzzyRuleAntecedent* ifDEsmallAndDCsmallAndDDbig = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsmallAndDCsmallAndDDbig->joinWithAND(smallesq, smallcentro, bigdir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDstop = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDstop->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDstop->addOutput(stopdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule25 = new FuzzyRule(25, ifDEsmallAndDCsmallAndDDbig, thenVEfastAndVDstop); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule25); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = small and DC = small and DD = safe THEN velocityesq = fast and velocitydir = stop"
+  FuzzyRuleAntecedent* ifDEsmallAndDCsmallAndDDsafe = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsmallAndDCsmallAndDDsafe->joinWithAND(smallesq, smallcentro, safedir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDstop = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEfastAndVDstop->addOutput(fastesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEfastAndVDstop->addOutput(stopdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule26 = new FuzzyRule(26, ifDEsmallAndDCsmallAndDDsafe, thenVEfastAndVDstop); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule26); // Adding FuzzyRule to Fuzzy object
+
+//FuzzyRule "IF DE = small and DC = small and DD = small THEN velocityesq = stop and velocitydir = stop"
+  FuzzyRuleAntecedent* ifDEsmallAndDCsmallAndDDsmall = new FuzzyRuleAntecedent(); // Instantiating an Antecedent to expression
+  ifDEsmallAndDCsmallAndDDsmall->joinWithAND(smallesq, smallcentro, smalldir); // Adding corresponding FuzzySet to Antecedent object
+  FuzzyRuleConsequent* thenVEfastAndVDstop = new FuzzyRuleConsequent(); // Instantiating a Consequent to expression
+  thenVEstopAndVDstop->addOutput(stopesq);// Adding corresponding FuzzySet to Consequent object
+  thenVEstopAndVDstop->addOutput(stopdir);// Adding corresponding FuzzySet to Consequent object
+  // Instantiating a FuzzyRule object
+  FuzzyRule* fuzzyRule27 = new FuzzyRule(27, ifDEsmallAndDCsmallAndDDsmall, thenVEstopAndVDstop); // Passing the Antecedent and the Consequent of expression 
+  fuzzy->addFuzzyRule(fuzzyRule27); // Adding FuzzyRule to Fuzzy object
+}
+
+void loop()
+{
+  if(digitalRead(pinTDIR))
+  {
+    ligaApito();
+    parar();
+    delay(100);
+    andarAtras(); 
+    delay(500);    
+    virarEsquerda();
+    delay(500);
+    desligaApito();    
+    //andarFrente();
+  }
+  if(digitalRead(pinTESQ))
+  {
+    ligaApito();
+    parar();
+    delay(100);
+    andarAtras(); 
+    delay(500);    
+    virarDireita();
+    delay(500);
+    desligaApito();    
+    //andarFrente();
+  }
+  distancia = ultrasom(); 
+  // Step 5 - Report inputs value, passing its ID and value
+  fuzzy->setInput(1, distancia); 
+  // Step 6 - Exe the fuzzification
+  fuzzy->fuzzify(); 
+  // Step 7 - Exe the desfuzzyficação for each output, passing its ID
+  velocidade = int(fuzzy->defuzzify(1));
+  andarFrenteVel(velocidade);
+  Serial.print(distancia);
+  Serial.print('\t');
+  Serial.println(velocidade);
+  delay(100);  
+}
+
+void ligaApito()
+{
+  digitalWrite(pinAPITO, HIGH);
+}
+
+void desligaApito()
+{
+  digitalWrite(pinAPITO, LOW);
+}
+
+
+unsigned long ultrasom()
+{ 
+  long duration;
+  // Rotina para sensor de ultrasom de 3 pinos
+  pinMode(pinUS, OUTPUT);
+  digitalWrite(pinUS, LOW);
+  delayMicroseconds(2);
+  digitalWrite(pinUS, HIGH);
+  delayMicroseconds(5);
+  digitalWrite(pinUS, LOW);
+  pinMode(pinUS, INPUT);
+  duration = pulseIn(pinUS, HIGH);
+  return duration/29/2;
+}
+
+void andarFrenteVel(int vel) 
+{
+  digitalWrite(pinI1,HIGH);
+  digitalWrite(pinI2,LOW);
+  digitalWrite(pinI3,LOW);
+  digitalWrite(pinI4,HIGH);
+  analogWrite(pinEA,vel/constVel);
+  analogWrite(pinEB,int(vel*1.15)/constVel);
+}
+
+void andarFrente() 
+{
+  digitalWrite(pinI1,HIGH);
+  digitalWrite(pinI2,LOW);
+  digitalWrite(pinI3,LOW);
+  digitalWrite(pinI4,HIGH);
+  analogWrite(pinEA,160/constVel);
+  analogWrite(pinEB,180/constVel);
+}
+
+void virarDireita() 
+{
+  digitalWrite(pinI1,LOW);
+  digitalWrite(pinI2,LOW);
+  digitalWrite(pinI3,HIGH);
+  digitalWrite(pinI4,LOW);
+  analogWrite(pinEA,200/constVel);
+  analogWrite(pinEB,200/constVel);
+}
+
+void virarEsquerda() 
+{
+  digitalWrite(pinI1,LOW);
+  digitalWrite(pinI2,HIGH);
+  digitalWrite(pinI3,LOW);
+  digitalWrite(pinI4,LOW);
+  analogWrite(pinEA,200/constVel);
+  analogWrite(pinEB,200/constVel);
+}
+
+void andarAtras() 
+{
+  digitalWrite(pinI1,LOW);
+  digitalWrite(pinI2,HIGH);
+  digitalWrite(pinI3,HIGH);
+  digitalWrite(pinI4,LOW);
+  analogWrite(pinEA,200/constVel);
+  analogWrite(pinEB,200/constVel);
+}
+
+void girar() 
+{
+  
+  digitalWrite(pinI1,LOW);
+  digitalWrite(pinI2,HIGH);
+  digitalWrite(pinI3,LOW);
+  digitalWrite(pinI4,HIGH);
+  analogWrite(pinEA,200/constVel);
+  analogWrite(pinEB,200/constVel);
+  delay(190);
+}
+
+void parar() 
+{
+  digitalWrite(pinI1,HIGH);
+  digitalWrite(pinI2,HIGH);
+  digitalWrite(pinI3,HIGH);
+  digitalWrite(pinI4,HIGH);
+}
