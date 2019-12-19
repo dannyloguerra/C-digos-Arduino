@@ -1,0 +1,111 @@
+#include <Ultrasonic.h>
+Ultrasonic ultrassom_esquerda(6,7); // Define onde esta ligado o trig(6) e o echo(7) do sensor da lateral esquerda
+Ultrasonic ultrassom_centro(4,5);   // Define onde esta ligado o trig(4) e o echo(5) do sensor central
+Ultrasonic ultrassom_direita(2,3);  // Define onde esta ligado o trig(2) e o echo(3) do sensor da lateral direita
+ 
+long distancia_esquerda;
+long distancia_centro;
+long distancia_direita;
+
+//Declaração dos pinos utilizados para controlar a velocidade de rotacao
+const int PINO_ENA_esquerda = 13; 
+const int PINO_ENB_direita = 8;
+
+//Declaração dos pinos utilizados para controlar o sentido do motor
+const int PINO_IN1_esquerda = 12; 
+const int PINO_IN2_esquerda = 11;
+const int PINO_IN3_direita = 10;
+const int PINO_IN4_direita = 9;
+
+void setup() 
+{
+  int i = 0;
+  //configuração dos pinos como saida
+  pinMode(PINO_ENA_esquerda, OUTPUT); 
+  pinMode(PINO_ENB_direita, OUTPUT);
+  pinMode(PINO_IN1_esquerda, OUTPUT);
+  pinMode(PINO_IN2_esquerda, OUTPUT);
+  pinMode(PINO_IN3_direita, OUTPUT);
+  pinMode(PINO_IN4_direita, OUTPUT);
+
+  //variáveis para controle de velocidade de cada lado
+  int direita=0;
+  int esquerda=0;
+
+}
+ 
+void loop()
+{
+  //variáveis para receber os valores dos sensores
+  distancia_esquerda = ultrassom_esquerda.Ranging(CM);
+  distancia_centro = ultrassom_centro.Ranging(CM);
+  distancia_direita = ultrassom_direita.Ranging(CM);
+
+//Condição para sempre seguir adiante caso não tenha nada muito próximo
+if (distancia_esquerda>=20 and distancia_centro>=20 and distancia_direita>=20){
+  digitalWrite(PINO_IN1_esquerda, HIGH); 
+  digitalWrite(PINO_IN2_esquerda, LOW);
+  digitalWrite(PINO_IN3_direita, HIGH);
+  digitalWrite(PINO_IN4_direita, LOW);
+  direita=60;
+  esquerda=60;  
+}
+else{
+  if(distancia_centro<20){
+    digitalWrite(PINO_IN1_esquerda, LOW); 
+    digitalWrite(PINO_IN2_esquerda, HIGH);
+    digitalWrite(PINO_IN3_direita, LOW);
+    digitalWrite(PINO_IN4_direita, HIGH);
+    direita=60;
+    esquerda=60; 
+    int i =0;
+    digitalWrite(PINO_IN1_esquerda, LOW); 
+    digitalWrite(PINO_IN2_esquerda, HIGH);
+    digitalWrite(PINO_IN3_direita, LOW);
+    digitalWrite(PINO_IN4_direita, LOW);
+    for (i = 0; i < 60; i=i+20){ 
+      analogWrite(PINO_ENA_esquerda, esquerda);
+      analogWrite(PINO_ENB_direita, 0);
+      delay(300); 
+    }
+}
+}
+
+//Condição para parar caso todos os sensores vejam algo muito próximo
+if(distancia_esquerda<=20 and distancia_centro<=20 and distancia_direita<=20){
+  digitalWrite(PINO_IN1_esquerda, HIGH); 
+  digitalWrite(PINO_IN2_esquerda, HIGH);
+  digitalWrite(PINO_IN3_direita, HIGH);
+  digitalWrite(PINO_IN4_direita, HIGH);  
+  direita=0;
+  esquerda=0;
+}
+
+//Começar a reduzir a velocidade para desviar caso algum obstáculo se aproxime
+if (distancia_esquerda>=40 and distancia_centro>=40 and distancia_direita<=40){
+  digitalWrite(PINO_IN1_esquerda, LOW); 
+  digitalWrite(PINO_IN2_esquerda, HIGH);
+  digitalWrite(PINO_IN3_direita, HIGH);
+  digitalWrite(PINO_IN4_direita, LOW);
+  direita=60;
+  esquerda=30;  
+}
+
+if (distancia_esquerda<=40 and distancia_centro>=40 and distancia_direita>=40){
+  digitalWrite(PINO_IN1_esquerda, HIGH); 
+  digitalWrite(PINO_IN2_esquerda, LOW);
+  digitalWrite(PINO_IN3_direita, LOW);
+  digitalWrite(PINO_IN4_direita, HIGH);
+  direita=30;
+  esquerda=60;  
+}
+
+int i =0;
+for (i = 0; i < 60; i=i+20){ 
+  analogWrite(PINO_ENA_esquerda, esquerda);
+  analogWrite(PINO_ENB_direita, direita);
+  delay(1); //intervalo para incrementar a variavel i
+}
+  
+
+}
